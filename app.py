@@ -17,11 +17,21 @@ try:
             lat, lon =  location.latitude, location.longitude
             elevation = location_core.get_elevation(lat, lon)
 
-            st.write(f"**Location**: {location_core.address}")
+            st.write(f"**Location**: {location.address}")
             col1, col2, col3 = st.columns(3)
             col1.metric("Latitude", f"{lat:.4f}")
             col2.metric("Longitude", f"{lon:.4f}")
             col3.metric("elevation", f"{elevation}m")
+
+            m = folium.Map(location=[lat,lon], zoom_start=12)
+
+            folium.Marker(
+                [lat,lon],popup=f"{address}: {elevation}m",
+                icon=folium.Icon(color='red', icon='info-sign')
+                ).add_to(m)
+            
+            st_folium(m, height=700, width=500)
+        
         else:
             st.warning("Could not find that location. Try adding a state or Country name.")
 
