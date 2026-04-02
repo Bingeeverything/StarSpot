@@ -14,5 +14,11 @@ yo = get_cloud_data(-36.73236, 147.30597)
 df = pd.DataFrame(yo["hourly"])
 df['datetime_col'] = pd.to_datetime(df['time'])
 df['hour'] = df['datetime_col'].dt.hour
+df['day'] = df['datetime_col'].dt.date
 
-print(df)
+bins = [0,5,11,17,23]
+lab = ["Night", "Morning", "Afternoon", "Evening"]
+df['window'] = pd.cut(df['hour'], labels=lab, bins= bins, include_lowest=True)
+
+grouped_Data = df.groupby(['day','window'])['cloud_cover_850hPa'].mean()
+print(grouped_Data)
