@@ -4,6 +4,7 @@ from streamlit_folium import st_folium
 import requests
 from geopy.geocoders import Nominatim
 from sections import location_core
+from sections import weather_cloud
 
 st.subheader("Section 1: Core Location Engine")
 address =  st.text_input("Enter a place(e.g., Mt Bogong, Victoria)")
@@ -11,17 +12,27 @@ address =  st.text_input("Enter a place(e.g., Mt Bogong, Victoria)")
 try:
     if address:
         geolocator = Nominatim(user_agent="StarSpot_app")
-        location = geolocator.geocode(address)
+        location = geolocator.geocode(address, exactly_one=False)
 
         if location:
-            lat, lon =  location.latitude, location.longitude
+            choosen = st.selectbox('Choose the right adress',(i.address for i in location))
+            for i in location:
+                if i.address == choosen:
+                    coords = i
+
+            lat, lon =  coords.latitude, coords.longitude
             elevation = location_core.get_elevation(lat, lon)
 
-            st.write(f"**Location**: {location.address}")
+            st.write(f"**Location**: {coords.address}")
             col1, col2, col3 = st.columns(3)
             col1.metric("Latitude", f"{lat:.4f}")
             col2.metric("Longitude", f"{lon:.4f}")
             col3.metric("elevation", f"{elevation}m")
+
+            df, grouped_data = weather_cloud.get_cloud_data(lat,lon)
+            st.dataframe(df)
+            st.table(grouped_data)
+
 
             m = folium.Map(location=[lat,lon], zoom_start=12)
 
