@@ -18,5 +18,5 @@ def get_cloud_data(lat,lon):
     lab = ["Night", "Morning", "Afternoon", "Evening"]
     df['window'] = pd.cut(df['hour'], labels=lab, bins= bins, include_lowest=True)
 
-    grouped_Data = df.groupby(['day','window'], observed=True)[['cloud_cover_850hPa','cloud_cover_800hPa','relative_humidity_850hPa','relative_humidity_800hPa']].mean()
+    grouped_Data = df.groupby(['day','window'], observed=True)[['geopotential_height_800hPa','geopotential_height_850hPa','cloud_cover_850hPa','cloud_cover_800hPa','relative_humidity_850hPa','relative_humidity_800hPa']].mean()
     return df, grouped_Data
