@@ -5,6 +5,7 @@ import requests
 from geopy.geocoders import Nominatim
 from sections import location_core
 from sections import weather_cloud
+import pandas as pd
 
 st.subheader("Section 1: Core Location Engine")
 address =  st.text_input("Enter a place(e.g., Mt Bogong, Victoria)")
@@ -43,6 +44,10 @@ try:
             day_data.drop('geopotential_height_800hPa', axis=1, inplace=True)
             day_data.drop('geopotential_height_850hPa', axis=1, inplace=True)
 
+            bins = [0,60,80,100]
+            lab = ['Perfect','Gamble','Cloud will Come']
+            conditions = pd.cut(day_data[f"Humidity at {mean_height_800:.0f}m"], labels=lab, bins= bins, include_lowest=True)
+            day_data['CLoud Conditions'] = conditions
             st.dataframe(day_data)
 
             m = folium.Map(location=[lat,lon], zoom_start=12)
