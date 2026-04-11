@@ -5,3 +5,4 @@ astral
 folium
 pandas
 rasterio
+streamlit-folium
