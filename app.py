@@ -7,7 +7,10 @@ from sections import weather_cloud
 from sections import astronomy_core
 import pandas as pd
 
-st.subheader("Section 1: Core Location Engine")
+st.set_page_config(page_title="StarSpot Planner", page_icon="🌌", layout="centered", initial_sidebar_state="collapsed")
+st.markdown("<h1 style='text-align: center;'>✨ StarSpot</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: gray;'>Astrophotography & Dark Sky Forecaster</p>", unsafe_allow_html=True)
+st.divider()
 address =  st.text_input("Enter a place(e.g., Mt Bogong, Victoria)")
 
 def calculate_stargazing_rating(cloud_condition, moon_impact):
@@ -72,16 +75,25 @@ if address:
         lab = ['Perfect','Gamble','Cloud will Come']
         conditions = pd.cut(day_data[f"Humidity at {mean_height_800:.0f}m"], labels=lab, bins= bins, include_lowest=True)
         day_data['CLoud Conditions'] = conditions
-        st.dataframe(day_data)
-
+        st.markdown("### Atmospheric Conditions")
+        st.dataframe(
+            day_data, 
+            hide_index=True, 
+            use_container_width=True
+        )
+        st.divider()
+        st.markdown("### Target Location")
         m = folium.Map(location=[lat,lon], zoom_start=12)
 
+        m = folium.Map(location=[lat,lon], zoom_start=12, tiles="CartoDB dark_matter")
+
         folium.Marker(
-            [lat,lon],popup=f"{address}: {elevation}m",
-            icon=folium.Icon(color='red', icon='info-sign')
-            ).add_to(m)
-        
-        st_folium(m, height=700, width=500)
+            [lat,lon],
+            popup=f"{address}: {elevation}m",
+            icon=folium.Icon(color='purple', icon='info-sign')
+        ).add_to(m)
+
+        st_folium(m, height=500, width=700, returned_objects=[])
     
     else:
         st.warning("Could not find that location. Try adding a state or Country name.")
