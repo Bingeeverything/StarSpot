@@ -6,3 +6,4 @@ folium
 pandas
 rasterio
 streamlit-folium
+pytz
