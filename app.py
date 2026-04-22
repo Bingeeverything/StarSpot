@@ -14,7 +14,6 @@ st.divider()
 
 address = st.text_input("Enter a place(e.g., Mt Bogong, Victoria)")
 
-# --- HELPER FUNCTIONS ---
 def calculate_stargazing_rating(cloud_condition, moon_impact):
     """Combines atmospheric and astronomical data to give a definitive rating."""
     if cloud_condition == 'Perfect':
@@ -25,17 +24,11 @@ def calculate_stargazing_rating(cloud_condition, moon_impact):
         if moon_impact == 'High': return "🔴 NO: High risk of clouds AND a bright moon. Don't risk the drive."
         else: return "🟡 MAYBE: Cloud risk is high, but if it clears, the dark sky will be worth it."
     else: 
-        return "🔴 NO: Heavy cloud cover expected. Stay home and save gas."
+        return "🔴 NO: Heavy cloud cover expected. Stay home."
 
-def format_col_name(df, old_col, new_name, h_800, h_850):
-    """Safely renames columns using DRY principles"""
-    if '800hPa' in old_col:
-        formatted_name = f"{new_name} at {h_800:.0f}m" 
-    else:
-        formatted_name = f"{new_name} at {h_850:.0f}m"
-        
+def format_col_name(df, old_col, new_name, target_height):
+    formatted_name = f"{new_name} at {target_height:.0f}m"
     df.rename(columns={old_col: formatted_name}, inplace=True)
-
 
 if address:
     geolocator = Nominatim(user_agent="StarSpot_app")
@@ -63,14 +56,16 @@ if address:
         mean_height_850 = df[df['day'] == selected_date]['geopotential_height_850hPa'].mean().round(2)
         day_data = grouped_data.loc[selected_date]
         
-        format_col_name(day_data, 'cloud_cover_800hPa', 'Cloud Cover', mean_height_800, mean_height_850)
-        format_col_name(day_data, 'cloud_cover_850hPa', 'Cloud Cover', mean_height_800, mean_height_850)
-        format_col_name(day_data, 'relative_humidity_800hPa', 'Humidity', mean_height_800, mean_height_850)
-        format_col_name(day_data, 'relative_humidity_850hPa', 'Humidity', mean_height_800, mean_height_850)
-        format_col_name(day_data, 'wind_speed_800hPa', 'Wind Speed', mean_height_800, mean_height_850)
-        format_col_name(day_data, 'wind_speed_850hPa', 'Wind Speed', mean_height_800, mean_height_850)
-        format_col_name(day_data, 'wind_direction_800hPa', 'Wind Dir', mean_height_800, mean_height_850)
-        format_col_name(day_data, 'wind_direction_850hPa', 'Wind Dir', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'cloud_cover_800hPa', 'Cloud Cover', mean_height_800)
+        format_col_name(day_data, 'cloud_cover_850hPa', 'Cloud Cover', mean_height_850)
+        format_col_name(day_data, 'relative_humidity_800hPa', 'Humidity', mean_height_800)
+        format_col_name(day_data, 'relative_humidity_850hPa', 'Humidity', mean_height_850)
+        format_col_name(day_data, 'wind_speed_800hPa', 'Wind Speed', mean_height_800)
+        format_col_name(day_data, 'wind_speed_850hPa', 'Wind Speed', mean_height_850)
+        format_col_name(day_data, 'wind_direction_800hPa', 'Wind Dir', mean_height_800)
+        format_col_name(day_data, 'wind_direction_850hPa', 'Wind Dir', mean_height_850)
+        format_col_name(day_data, 'temprature_800hPa', 'Temprature', mean_height_850)
+        format_col_name(day_data, 'temprature_850hPa', 'Temprature', mean_height_850)
 
         day_data.drop('geopotential_height_800hPa', axis=1, inplace=True)
         day_data.drop('geopotential_height_850hPa', axis=1, inplace=True)
@@ -83,7 +78,29 @@ if address:
         day_data['Cloud Conditions'] = conditions
         
         st.markdown("### Atmospheric Conditions")
-        st.dataframe(day_data, hide_index=False, use_container_width=True)
+        tab_peak, tab_base = st.tabs(["Peak Level", "Base Level"])
+        
+        with tab_peak:
+            cols_800 = [
+                f"Cloud Cover at {mean_height_800:.0f}m",
+                f"Wind Speed at {mean_height_800:.0f}m",
+                f"Wind Dir at {mean_height_800:.0f}m",
+                "Visibility (km)",
+                "Cloud Conditions" 
+            ]
+            st.dataframe(day_data[cols_800], use_container_width=True)
+            
+        with tab_base:
+            cols_850 = [
+                f"Cloud Cover at {mean_height_850:.0f}m",
+                f"Wind Speed at {mean_height_850:.0f}m",
+                f"Wind Dir at {mean_height_850:.0f}m",
+                "Visibility (km)",
+                "Cloud Conditions"
+            ]
+            st.dataframe(day_data[cols_850], use_container_width=True)
+
+        st.info('Cloud conditions, if Humidity upto 60%, no chance of cloud forming, more than 80 is a risk')
 
         #SECTION 3: ASTRONOMY
         astro_data = astronomy_core.get_astro_data(lat, lon, selected_date)
