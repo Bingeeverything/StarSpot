@@ -11,81 +11,114 @@ st.set_page_config(page_title="StarSpot Planner", page_icon="🌌", layout="cent
 st.markdown("<h1 style='text-align: center;'>✨ StarSpot</h1>", unsafe_allow_html=True)
 st.markdown("<p style='text-align: center; color: gray;'>Astrophotography & Dark Sky Forecaster</p>", unsafe_allow_html=True)
 st.divider()
-address =  st.text_input("Enter a place(e.g., Mt Bogong, Victoria)")
 
+address = st.text_input("Enter a place(e.g., Mt Bogong, Victoria)")
+
+# --- HELPER FUNCTIONS ---
 def calculate_stargazing_rating(cloud_condition, moon_impact):
-    """
-    Combines atmospheric and astronomical data to give a definitive rating.
-    """
-    # SCENARIO 1: The skies are totally clear
+    """Combines atmospheric and astronomical data to give a definitive rating."""
     if cloud_condition == 'Perfect':
-        if moon_impact == 'Low':
-            return "🟢 GO: Pristine Dark Skies! Perfect conditions."
-        elif moon_impact == 'Medium':
-            return "🟢 GO: Clear skies. Some moonlight, but bright stars and planets will look great."
-        elif moon_impact == 'High':
-            return "🟡 MAYBE: Clear skies, but the Full Moon will wash out the Milky Way and faint stars."
-            
-    # SCENARIO 2: 50/50 chance of clouds
+        if moon_impact == 'Low': return "🟢 GO: Pristine Dark Skies! Perfect conditions."
+        elif moon_impact == 'Medium': return "🟢 GO: Clear skies. Some moonlight, but bright stars look great."
+        elif moon_impact == 'High': return "🟡 MAYBE: Clear skies, but the Full Moon washes out faint stars."
     elif cloud_condition == 'Gamble':
-        if moon_impact == 'High':
-            return "🔴 NO: High risk of clouds AND a bright moon. Don't risk the drive."
-        else:
-            return "🟡 MAYBE: Cloud risk is high, but if it clears, the dark sky will be worth it."
-            
-    # SCENARIO 3: Clouds are guaranteed
+        if moon_impact == 'High': return "🔴 NO: High risk of clouds AND a bright moon. Don't risk the drive."
+        else: return "🟡 MAYBE: Cloud risk is high, but if it clears, the dark sky will be worth it."
     else: 
-        # This catches 'Cloud will Come' regardless of what the moon is doing
         return "🔴 NO: Heavy cloud cover expected. Stay home and save gas."
+
+def format_col_name(df, old_col, new_name, h_800, h_850):
+    """Safely renames columns using DRY principles"""
+    if '800hPa' in old_col:
+        formatted_name = f"{new_name} at {h_800:.0f}m" 
+    else:
+        formatted_name = f"{new_name} at {h_850:.0f}m"
+        
+    df.rename(columns={old_col: formatted_name}, inplace=True)
+
 
 if address:
     geolocator = Nominatim(user_agent="StarSpot_app")
     location = geolocator.geocode(address, exactly_one=False)
 
     if location:
-        choosen = st.selectbox('Choose the right adress',(i.address for i in location))
+        choosen = st.selectbox('Choose the right address', [i.address for i in location])
         for i in location:
             if i.address == choosen:
                 coords = i
-        selected_date = st.date_input('input a date')
+        selected_date = st.date_input('Input a date')
 
-        lat, lon =  coords.latitude, coords.longitude
+        lat, lon = coords.latitude, coords.longitude
         elevation = location_core.get_elevation(lat, lon)
 
         st.write(f"**Location**: {coords.address}")
         col1, col2, col3 = st.columns(3)
         col1.metric("Latitude", f"{lat:.4f}")
         col2.metric("Longitude", f"{lon:.4f}")
-        col3.metric("elevation", f"{elevation}m")
+        col3.metric("Elevation", f"{elevation}m")
 
+        # Fetch Weather Data
         df, grouped_data = weather_cloud.get_cloud_data(lat,lon)
         mean_height_800 = df[df['day'] == selected_date]['geopotential_height_800hPa'].mean().round(2)
         mean_height_850 = df[df['day'] == selected_date]['geopotential_height_850hPa'].mean().round(2)
         day_data = grouped_data.loc[selected_date]
         
-        day_data.rename(columns={'cloud_cover_800hPa': f"Cloud Cover at {mean_height_800:.0f}m"}, inplace=True)
-        day_data.rename(columns={'cloud_cover_850hPa': f"Cloud Cover at {mean_height_850:.0f}m"}, inplace=True)
-        day_data.rename(columns={'relative_humidity_800hPa': f"Humidity at {mean_height_800:.0f}m"}, inplace=True)
-        day_data.rename(columns={'relative_humidity_850hPa': f"Humidity at {mean_height_850:.0f}m"}, inplace=True)
+        format_col_name(day_data, 'cloud_cover_800hPa', 'Cloud Cover', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'cloud_cover_850hPa', 'Cloud Cover', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'relative_humidity_800hPa', 'Humidity', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'relative_humidity_850hPa', 'Humidity', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'wind_speed_800hPa', 'Wind Speed', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'wind_speed_850hPa', 'Wind Speed', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'wind_direction_800hPa', 'Wind Dir', mean_height_800, mean_height_850)
+        format_col_name(day_data, 'wind_direction_850hPa', 'Wind Dir', mean_height_800, mean_height_850)
 
         day_data.drop('geopotential_height_800hPa', axis=1, inplace=True)
         day_data.drop('geopotential_height_850hPa', axis=1, inplace=True)
+        day_data['Visibility (km)'] = (day_data['visibility'] / 1000).round(1)
+        day_data.drop('visibility', axis=1, inplace=True)
 
         bins = [0,60,80,100]
         lab = ['Perfect','Gamble','Cloud will Come']
         conditions = pd.cut(day_data[f"Humidity at {mean_height_800:.0f}m"], labels=lab, bins= bins, include_lowest=True)
-        day_data['CLoud Conditions'] = conditions
+        day_data['Cloud Conditions'] = conditions
+        
         st.markdown("### Atmospheric Conditions")
-        st.dataframe(
-            day_data, 
-            hide_index=True, 
-            use_container_width=True
-        )
+        st.dataframe(day_data, hide_index=False, use_container_width=True)
+
+        #SECTION 3: ASTRONOMY
+        astro_data = astronomy_core.get_astro_data(lat, lon, selected_date)
+
+        st.divider()
+        st.subheader("Section 3: Astronomical Conditions")
+
+        col_astro1, col_astro2, col_astro3 = st.columns(3)
+        dusk_str = astro_data['dark_window_start'].strftime("%I:%M %p")
+        dawn_str = astro_data['dark_window_end'].strftime("%I:%M %p")
+
+        col_astro1.metric("🌑 Moon Phase", astro_data['moon_status'])
+        col_astro2.metric("🌌 Dark Window Starts", dusk_str)
+        col_astro3.metric("🌅 Dark Window Ends", dawn_str)
+
+        # Calculate Final Verdict
+        try:
+            current_cloud_status = str(day_data['Cloud Conditions'].iloc[0])
+        except AttributeError:
+            current_cloud_status = str(day_data['Cloud Conditions'])
+
+        final_rating = calculate_stargazing_rating(current_cloud_status, astro_data['moon_impact'])
+
+        st.markdown("### Final Verdict")
+        if "GO" in final_rating:
+            st.success(final_rating)
+        elif "MAYBE" in final_rating:
+            st.warning(final_rating)
+        else:
+            st.error(final_rating)
+
+        #MAP RENDERING
         st.divider()
         st.markdown("### Target Location")
-        m = folium.Map(location=[lat,lon], zoom_start=12)
-
-        m = folium.Map(location=[lat,lon], zoom_start=12, tiles="CartoDB dark_matter")
+        m = folium.Map(location=[lat,lon], zoom_start=12, tiles="OpenStreetMap")
 
         folium.Marker(
             [lat,lon],
@@ -97,39 +130,3 @@ if address:
     
     else:
         st.warning("Could not find that location. Try adding a state or Country name.")
-    
-
-    astro_data = astronomy_core.get_astro_data(lat, lon, selected_date)
-
-    st.divider()
-    st.subheader("Section 3: Astronomical Conditions")
-
-    col_astro1, col_astro2, col_astro3 = st.columns(3)
-
-    # Format the datetime objects so they look clean (e.g., "08:45 PM")
-    dusk_str = astro_data['dark_window_start'].strftime("%I:%M %p")
-    dawn_str = astro_data['dark_window_end'].strftime("%I:%M %p")
-
-    col_astro1.metric("🌑 Moon Phase", astro_data['moon_status'])
-    col_astro2.metric("🌌 Dark Window Starts", dusk_str)
-    col_astro3.metric("🌅 Dark Window Ends", dawn_str)
-
-    # The Final Verdict
-    # Assume 'current_cloud_status' is the 'Perfect', 'Gamble', etc. variable from your Section 2 pandas logic
-    try:
-        # If day_data is a DataFrame with one row
-        current_cloud_status = str(day_data['CLoud Conditions'].iloc[0])
-    except AttributeError:
-        # If day_data is a Series (single row already flattened)
-        current_cloud_status = str(day_data['CLoud Conditions'])
-
-    # NOW the function has the exact string it needs ('Perfect', 'Gamble', etc.)
-    final_rating = calculate_stargazing_rating(current_cloud_status, astro_data['moon_impact'])
-
-    st.markdown("### Final Verdict")
-    if "GO" in final_rating:
-        st.success(final_rating)
-    elif "MAYBE" in final_rating:
-        st.warning(final_rating)
-    else:
-        st.error(final_rating)
