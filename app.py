@@ -5,6 +5,7 @@ from geopy.geocoders import Nominatim
 from sections import location_core
 from sections import weather_cloud
 from sections import astronomy_core
+from sections import ranking_and_search
 import pandas as pd
 
 st.set_page_config(page_title="StarSpot Planner", page_icon="🌌", layout="centered", initial_sidebar_state="collapsed")
@@ -29,6 +30,9 @@ def calculate_stargazing_rating(cloud_condition, moon_impact):
 def format_col_name(df, old_col, new_name, target_height):
     formatted_name = f"{new_name} at {target_height:.0f}m"
     df.rename(columns={old_col: formatted_name}, inplace=True)
+
+if 'saved_spots' not in st.session_state:
+    st.session_state['saved_spots'] = []
 
 if address:
     geolocator = Nominatim(user_agent="StarSpot_app")
@@ -144,6 +148,34 @@ if address:
         ).add_to(m)
 
         st_folium(m, height=500, width=700, returned_objects=[])
-    
+
+        #--- Section 4 ----
+        current_score = 0
+        if current_cloud_status == 'Perfect': current_score += 50
+        elif current_cloud_status == 'Gamble': current_score += 15
+
+        if astro_data['moon_impact'] == 'Low': current_score += 50
+        elif astro_data['moon_impact'] == 'Medium': current_score += 35
+        elif astro_data['moon_impact'] == 'High': current_score += 15
+
+        if st.button(f"Save {coords.address.split(',')[0]} to Leaderboard"):   
+            short_name = coords.address.split(',')[0]
+            
+            st.session_state['saved_spots'] = ranking_and_search.add_to_queue(
+                st.session_state['saved_spots'], 
+                short_name, 
+                current_score
+            )
+            st.success(f"Saved! Current Score: {current_score}/100")
+
+        st.sidebar.markdown("###Top Stargazing Spots")
+        if len(st.session_state['saved_spots']) > 0:
+            top_spots = ranking_and_search.get_top_spots(st.session_state['saved_spots'])
+            
+            for rank, (name, score) in enumerate(top_spots, 1):
+                st.sidebar.metric(f"#{rank} {name}", f"{score}/100 pts")
+        else:
+            st.sidebar.info("Search and save locations to build your leaderboard.")
+
     else:
         st.warning("Could not find that location. Try adding a state or Country name.")
